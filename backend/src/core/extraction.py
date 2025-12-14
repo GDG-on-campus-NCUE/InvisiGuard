@@ -11,26 +11,48 @@ class WatermarkExtractor:
         return dct(dct(block.T, norm='ortho').T, norm='ortho')
 
     def bits_to_text(self, bits: list[int]) -> str:
-        """Convert list of bits to string."""
+        """Convert list of bits to string with Header validation."""
+        # Need at least 24 bits for header + 8 bits for length = 32 bits
+        if len(bits) < 32:
+            return "No Watermark Detected"
+            
+        # Extract Header (first 24 bits / 3 bytes)
+        header_bits = bits[:24]
+        header_chars = []
+        for i in range(0, 24, 8):
+            byte = header_bits[i:i+8]
+            char_code = int(''.join(map(str, byte)), 2)
+            header_chars.append(chr(char_code))
+        
+        header_str = "".join(header_chars)
+        
+        if header_str != "INV":
+            return "No Watermark Detected"
+            
+        # Extract Length (next 8 bits)
+        length_bits = bits[24:32]
+        length_val = int(''.join(map(str, length_bits)), 2)
+        
+        if length_val == 0:
+            return ""
+            
+        # Extract Data
+        # Start at index 32
+        # Read length_val bytes
+        data_bits = bits[32:]
         chars = []
-        for i in range(0, len(bits), 8):
-            byte = bits[i:i+8]
+        
+        for i in range(0, len(data_bits), 8):
+            if len(chars) >= length_val:
+                break
+                
+            byte = data_bits[i:i+8]
             if len(byte) < 8:
                 break
-            
-            try:
-                char_code = int(''.join(map(str, byte)), 2)
-                # Simple heuristic: if char is null or non-printable (except common ones), stop or skip?
-                # For this MVP, let's just append.
-                # But to avoid returning 1000s of garbage chars, maybe we stop at null if we find one?
-                # The embedder didn't add null.
-                # Let's just return the string.
-                if char_code == 0:
-                    break
-                chars.append(chr(char_code))
-            except ValueError:
-                continue
                 
+            char_code = int(''.join(map(str, byte)), 2)
+            chars.append(chr(char_code))
+            
         return "".join(chars)
 
     def extract_watermark_dct(self, image: np.ndarray) -> str:

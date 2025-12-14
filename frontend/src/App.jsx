@@ -29,12 +29,11 @@ function App() {
             .catch(err => console.error(err))
     }, [])
 
-    const handleFileSelect = (selectedFile) => {
+    const handleEmbedFileSelect = (selectedFile) => {
         setFile(selectedFile)
         setOriginalPreview(URL.createObjectURL(selectedFile))
         setResult(null)
-        // Auto-set as extract original too for convenience
-        setExtractOriginal(selectedFile)
+        // Removed auto-set of extractOriginal to prevent state conflict
     }
 
     const handleEmbed = async () => {
@@ -91,19 +90,19 @@ function App() {
                                 onClick={() => setActiveTab('embed')}
                                 className={`px-4 py-2 rounded ${activeTab === 'embed' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700'}`}
                             >
-                                Embed
+                                Embed Watermark
                             </button>
                             <button
                                 onClick={() => setActiveTab('extract')}
                                 className={`px-4 py-2 rounded ${activeTab === 'extract' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700'}`}
                             >
-                                Extract
+                                Extract (With Original)
                             </button>
                             <button
                                 onClick={() => setActiveTab('verify')}
                                 className={`px-4 py-2 rounded ${activeTab === 'verify' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700'}`}
                             >
-                                Verify
+                                Verify (Blind)
                             </button>
                         </div>
                         <div className="text-sm">
@@ -122,7 +121,7 @@ function App() {
                         <div className="space-y-6">
                             <section className="bg-white p-6 rounded-lg shadow-md">
                                 <h2 className="text-xl font-semibold mb-4">1. Upload Image</h2>
-                                <Dropzone onFileSelect={handleFileSelect} label={file ? file.name : "Upload Image"} />
+                                <Dropzone onFileSelect={handleEmbedFileSelect} label={file ? file.name : "Upload Image"} />
                             </section>
 
                             <section>
@@ -156,16 +155,21 @@ function App() {
                                             signalMapUrl={result.signal_map_url ? `http://localhost:8000${result.signal_map_url}` : null}
                                             metrics={{ psnr: result.psnr, ssim: result.ssim }}
                                         />
+                                        <div className="mt-4 flex justify-end">
+                                            <a 
+                                                href={`http://localhost:8000${result.image_url}`} 
+                                                download="watermarked_image.png"
+                                                className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 inline-flex items-center gap-2"
+                                                target="_blank"
+                                                rel="noreferrer"
+                                            >
+                                                <span>Download Image</span>
+                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                                                </svg>
+                                            </a>
+                                        </div>
                                     </div>
-
-                                    <AttackSimulator
-                                        imageUrl={`http://localhost:8000${result.image_url}`}
-                                        onExport={(file) => {
-                                            setExtractSuspect(file)
-                                            setActiveTab('extract')
-                                            alert("Attacked image set as suspect for extraction!")
-                                        }}
-                                    />
                                 </div>
                             )}
                         </div>
@@ -174,6 +178,9 @@ function App() {
                 {activeTab === 'extract' && (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                         <div className="space-y-6">
+                            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 text-blue-800 text-sm">
+                                <strong>Note:</strong> Use this tab if you have the original image. It provides higher accuracy than Blind Verify.
+                            </div>
                             <section className="bg-white p-6 rounded-lg shadow-md">
                                 <h2 className="text-xl font-semibold mb-4">1. Original Image</h2>
                                 <Dropzone

@@ -36,9 +36,25 @@ class WatermarkEmbedder:
         return idct(idct(block.T, norm='ortho').T, norm='ortho')
 
     def text_to_bits(self, text: str) -> list[int]:
-        """Convert string to list of bits."""
+        """Convert string to list of bits with Header and Length."""
+        # Header: "INV"
+        header = "INV"
+        
+        # Length: 1 byte
+        length = len(text)
+        if length > 255:
+            # Truncate or raise? Spec says max 255.
+            # Let's truncate to be safe, or raise.
+            # Given it's a user input, raising might be better but let's just truncate for now or raise.
+            # The UI limits to 32 chars anyway.
+            raise ValueError("Text too long (max 255 chars)")
+            
+        # Construct payload: Header + Length + Text
+        # Note: chr(length) creates a character with that code point.
+        payload_str = header + chr(length) + text
+        
         bits = []
-        for char in text:
+        for char in payload_str:
             binval = bin(ord(char))[2:].rjust(8, '0')
             bits.extend([int(b) for b in binval])
         return bits
