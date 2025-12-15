@@ -31,11 +31,11 @@ As a user, I want to download the watermarked image directly from the Embed tab 
 **Independent Test**:
 1.  Go to Embed tab.
 2.  Embed a watermark.
-3.  Click "Download" button.
+3.  Click "Download" button (should directly download the file).
 4.  Verify Attack Simulator is NOT present in this tab.
 
 **Acceptance Scenarios**:
-1.  **Given** a generated watermark, **When** I click "Download", **Then** the browser downloads the PNG file.
+1.  **Given** a generated watermark, **When** I click "Download", **Then** the browser directly downloads the PNG file without opening a new tab or window.
 2.  **Given** the Embed tab, **When** I look at the UI, **Then** I do not see the Attack Simulator component.
 
 ### User Story 3 - Fix Extract Uploads (Priority: P2)
@@ -71,7 +71,7 @@ As a user, I want clear distinction between "Extract" (Requires Original) and "V
 ### Functional Requirements
 
 -   **FR-001**: The `Verify` logic MUST use a robust decoding method (possibly adding error correction or a fixed preamble) to ensure the extracted text is correct.
--   **FR-002**: The `Embed` tab MUST include a "Download" button for the processed image.
+--   **FR-002**: The `Embed` tab MUST include a "Download" button for the processed image. The download behavior MUST trigger a client-side fetch and blob download (no new tab); ensure server CORS and `Content-Type` support this flow.
 -   **FR-003**: The `Embed` tab MUST NOT render the `AttackSimulator` component.
 -   **FR-004**: The `Extract` tab MUST correctly handle two distinct file inputs (Original and Suspect) without state conflict.
 -   **FR-005**: The UI MUST explicitly label the difference between Extract (Reference-based) and Verify (Blind).

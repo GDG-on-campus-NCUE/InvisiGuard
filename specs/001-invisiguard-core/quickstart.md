@@ -51,7 +51,7 @@
 
 1.  Open the frontend app.
 2.  Go to "Embed" tab. Upload an image and enter text. Click "Embed".
-3.  Download the watermarked image.
+3.  Click "Download" to directly download the watermarked image (no new tab).
 4.  Take a screenshot or use "Attack Simulator" to distort the image.
 5.  Go to "Extract" tab. Upload the original image and the distorted image.
 6.  Click "Extract" to see the recovered text and alignment visualization.

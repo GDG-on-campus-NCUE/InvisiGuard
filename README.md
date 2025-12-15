@@ -63,7 +63,7 @@ npm run dev
 3.  Enter the text to embed (e.g., "Copyright 2025").
 4.  Adjust **Strength (Alpha)** if needed (Higher = more robust but more visible).
 5.  Click **Embed** and wait for processing.
-6.  **Download** the watermarked image.
+6.  Click "Download" to directly download the watermarked image (no new tab).
 
 ### 2. Extract (With Original)
 *Use this mode for maximum robustness against severe geometric distortion (e.g., angled photos).*

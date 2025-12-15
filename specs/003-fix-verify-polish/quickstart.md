@@ -9,7 +9,7 @@
 ## 1. Verify "Blind Verify" Fix
 1.  Navigate to **Embed** tab.
 2.  Upload an image and embed text "Secret123".
-3.  Download the result.
+3.  Click "Download" to directly download the result (no new tab).
 4.  Navigate to **Verify (Blind)** tab.
 5.  Upload the downloaded image.
 6.  **Success**: Result shows "Secret123".
@@ -28,5 +28,5 @@
 ## 3. Verify Embed UX
 1.  Navigate to **Embed** tab.
 2.  Embed a watermark.
-3.  **Success**: A "Download" button appears. Clicking it downloads the file.
+3.  **Success**: A "Download" button appears. Clicking it directly downloads the file (no new tab).
 4.  **Success**: The "Attack Simulator" section is NOT visible on this tab.

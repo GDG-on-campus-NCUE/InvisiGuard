@@ -27,7 +27,7 @@
 *Priority: P2*
 
 ### Implementation
-- [x] T007 [US2] Add "Download Watermarked Image" button to Embed tab results in frontend/src/App.jsx
+- [x] T007 [US2] Add "Download Watermarked Image" button to Embed tab results in frontend/src/App.jsx (direct client-side download; no new tab)
 - [x] T008 [US2] Remove `AttackSimulator` component from Embed tab conditional rendering in frontend/src/App.jsx
 
 ## Phase 4: User Story 3 - Fix Extract Uploads
@@ -50,7 +50,7 @@
 ## Phase 6: Polish & Verification
 *Goal: Ensure all fixes work together.*
 
-- [x] T014 Run full regression test: Embed -> Download -> Verify (Blind) -> Success
+- [x] T014 Run full regression test: Embed -> Download -> Verify (Blind) -> Success (validate file is downloaded directly and no new tab/window opened)
 - [x] T015 Run full regression test: Extract (Original + Suspect) -> Success
 
 ## Dependencies

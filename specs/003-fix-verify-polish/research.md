@@ -41,7 +41,7 @@
 2.  Attack Simulator is cluttering the Embed tab.
 
 **Research**:
--   **Download**: The API returns a URL (`/static/...`). We can add a simple `<a href="..." download>` button.
+    -   **Download**: The API returns a URL (`/static/...`). The frontend should retrieve the file via `fetch` and create a Blob URL to trigger a direct browser download (avoid opening a new tab). Ensure server CORS permits file fetch and `Content-Type` is set correctly; revoke the object URL after use.
 -   **Attack Simulator**: It is currently rendered in the Embed tab (likely below the fold of my previous read).
 
 **Decision**:

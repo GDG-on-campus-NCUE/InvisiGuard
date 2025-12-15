@@ -79,6 +79,30 @@ function App() {
         }
     }
 
+    const handleDownloadResult = async () => {
+        if (!result || !result.image_url) return
+
+        setLoading(true)
+        try {
+            const resp = await fetch(`http://localhost:8000${result.image_url}`)
+            if (!resp.ok) throw new Error('Download failed')
+            const blob = await resp.blob()
+            const url = URL.createObjectURL(blob)
+            const a = document.createElement('a')
+            a.href = url
+            a.download = 'watermarked_image.png'
+            document.body.appendChild(a)
+            a.click()
+            a.remove()
+            URL.revokeObjectURL(url)
+        } catch (err) {
+            console.error(err)
+            alert('Download failed')
+        } finally {
+            setLoading(false)
+        }
+    }
+
     return (
         <div className="min-h-screen bg-gray-100 p-8">
             <div className="max-w-6xl mx-auto space-y-8">
@@ -156,18 +180,16 @@ function App() {
                                             metrics={{ psnr: result.psnr, ssim: result.ssim }}
                                         />
                                         <div className="mt-4 flex justify-end">
-                                            <a 
-                                                href={`http://localhost:8000${result.image_url}`} 
-                                                download="watermarked_image.png"
-                                                className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 inline-flex items-center gap-2"
-                                                target="_blank"
-                                                rel="noreferrer"
+                                            <button
+                                                onClick={handleDownloadResult}
+                                                disabled={loading}
+                                                className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 inline-flex items-center gap-2 disabled:opacity-50"
                                             >
                                                 <span>Download Image</span>
                                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
                                                     <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
                                                 </svg>
-                                            </a>
+                                            </button>
                                         </div>
                                     </div>
                                 </div>

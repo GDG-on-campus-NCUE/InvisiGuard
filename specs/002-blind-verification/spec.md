@@ -46,7 +46,7 @@ As a user embedding a watermark, I want to see a high-contrast "heat map" of whe
     - *Note*: This may involve embedding a synchronization template (e.g., FFT peaks) or using a rotation-invariant domain (e.g., Log-Polar DCT).
 - **FR-003**: Frontend MUST provide a "Verify" tab that allows single-image upload.
 - **FR-004**: Frontend MUST provide a "Signal Map" visualization in the Embed tab (distinct from the simple Diff Map, potentially normalized for visibility).
-- **FR-005**: System MUST support downloading the processed image (already implemented, but ensure it's robust).
+- **FR-005**: System MUST support downloading the processed image (already implemented, but ensure it's robust). The frontend should implement downloads via client-side `fetch` + Blob URL (no new tab); confirm server CORS and `Content-Type` headers allow direct file fetches.
 
 ### Technical Constraints & Decisions
 
