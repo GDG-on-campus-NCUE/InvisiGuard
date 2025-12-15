@@ -59,6 +59,7 @@ class WatermarkEmbedder:
             bits.extend([int(b) for b in binval])
         return bits
 
+    # DCT (Discrete Cosine Transform) 離散餘弦變換: 把圖像從「像素點」轉變成「頻率波」
     def embed_watermark_dct(self, image: np.ndarray, text: str, alpha: float = 1.0) -> np.ndarray:
         """
         Embed watermark into image using DCT and HVS masking.

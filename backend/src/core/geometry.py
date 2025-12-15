@@ -5,6 +5,7 @@ from typing import Tuple, Optional, List
 class GeometryProcessor:
     def __init__(self, nfeatures: int = 5000, scaleFactor: float = 1.2, nlevels: int = 8):
         # Initialize ORB detector with tuned parameters for robustness
+        # ORB (Oriented FAST and Rotated BRIEF): 特徵點偵測，抗破壞。
         self.orb = cv2.ORB_create(
             nfeatures=nfeatures,
             scaleFactor=scaleFactor,
@@ -108,7 +109,7 @@ def embed_synch_template(image: np.ndarray, template: SynchTemplate) -> np.ndarr
     h, w = y.shape
     cx, cy = w // 2, h // 2
 
-    # 1. DFT
+    # 1. DFT (Discrete Fourier Transform) (用於盲驗證): 透過頻譜分析找出週期性的訊號，用來計算旋轉角度。
     dft = np.fft.fft2(y.astype(float))
     dft_shift = np.fft.fftshift(dft)
 
