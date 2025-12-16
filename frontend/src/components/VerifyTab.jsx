@@ -36,7 +36,10 @@ export const VerifyTab = () => {
   return (
     <div className="bg-white p-6 rounded-lg shadow">
       <h2 className="text-xl font-bold mb-4">Blind Verification</h2>
-      <p className="text-gray-600 mb-4">Verify a watermark without the original image. Supports rotation and scaling.</p>
+      <p className="text-gray-600 mb-2">Verify a watermark without the original image.</p>
+      <p className="text-sm text-amber-600 mb-4">
+        <strong>⚠️ Limitation:</strong> Does not support rotated or scaled images. Works best with PNG format.
+      </p>
       
       <div className="mb-6">
         <label className="block text-sm font-medium text-gray-700 mb-2">Suspect Image</label>

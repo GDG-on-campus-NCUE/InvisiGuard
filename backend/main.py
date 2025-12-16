@@ -3,6 +3,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import os
 from src.api.routes import router as api_router
+from src.utils.logger import setup_logging
+
+# Setup logging with DEBUG level for detailed diagnostics
+setup_logging("DEBUG")
 
 app = FastAPI(
     title="InvisiGuard API",

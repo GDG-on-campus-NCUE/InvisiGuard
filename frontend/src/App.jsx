@@ -5,6 +5,7 @@ import ConfigPanel from './components/ConfigPanel'
 import ComparisonView from './components/ComparisonView'
 import AttackSimulator from './components/AttackSimulator'
 import VerifyTab from './components/VerifyTab'
+import { validateEmbedRequest } from './utils/validation'
 
 function App() {
     const [health, setHealth] = useState(null)
@@ -22,6 +23,20 @@ function App() {
     const [extractOriginal, setExtractOriginal] = useState(null)
     const [extractSuspect, setExtractSuspect] = useState(null)
     const [extractResult, setExtractResult] = useState(null)
+    const [extractOriginalPreview, setExtractOriginalPreview] = useState(null)
+    const [extractSuspectPreview, setExtractSuspectPreview] = useState(null)
+
+    const handleExtractOriginalSelect = (selectedFile) => {
+        setExtractOriginal(selectedFile)
+        setExtractOriginalPreview(URL.createObjectURL(selectedFile))
+        console.log('[Extract] Original file selected:', selectedFile.name)
+    }
+
+    const handleExtractSuspectSelect = (selectedFile) => {
+        setExtractSuspect(selectedFile)
+        setExtractSuspectPreview(URL.createObjectURL(selectedFile))
+        console.log('[Extract] Suspect file selected:', selectedFile.name)
+    }
 
     useEffect(() => {
         api.get('/health')
@@ -37,22 +52,35 @@ function App() {
     }
 
     const handleEmbed = async () => {
-        if (!file || !text) return
+        // T013-T016: Client-side validation
+        const validation = validateEmbedRequest(file, text, alpha)
+        if (!validation.valid) {
+            // T017: Improved error message display
+            const errorMessage = validation.errors.join('\n')
+            alert(`❌ Validation Error\n\n${errorMessage}`)
+            return
+        }
 
         setLoading(true)
         const formData = new FormData()
         formData.append('file', file)
-        formData.append('text', text)
+        formData.append('text', text.trim())
         formData.append('alpha', alpha)
 
         try {
-            const res = await api.post('/embed', formData, {
-                headers: { 'Content-Type': 'multipart/form-data' }
-            })
+            // T012: Remove manual Content-Type header - let browser set it automatically
+            const res = await api.post('/embed', formData)
             setResult(res.data.data)
         } catch (err) {
             console.error(err)
-            alert('Error embedding watermark')
+            // T017: Improved error message display with server error details
+            if (err.response?.data?.message) {
+                const errorData = err.response.data
+                const errorMessage = `❌ ${errorData.message}\n\n${errorData.suggestion || 'Please try again.'}`
+                alert(errorMessage)
+            } else {
+                alert('❌ Error embedding watermark. Please check the console for details.')
+            }
         } finally {
             setLoading(false)
         }
@@ -171,6 +199,19 @@ function App() {
 
                             {result && (
                                 <div className="space-y-6">
+                                    {/* PNG Format Warning */}
+                                    <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-300">
+                                        <h3 className="text-sm font-semibold text-yellow-900 mb-2 flex items-center gap-2">
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                                            </svg>
+                                            重要提示：請保持 PNG 格式
+                                        </h3>
+                                        <p className="text-sm text-yellow-800">
+                                            浮水印圖片已保存為 <strong>PNG 格式</strong>（無損壓縮）。<strong className="text-red-600">請勿轉換為 JPG</strong>，否則會因有損壓縮而破壞浮水印，導致無法提取！
+                                        </p>
+                                    </div>
+                                    
                                     <div className="bg-white p-6 rounded-lg shadow-md">
                                         <h2 className="text-xl font-semibold mb-4">Result Analysis</h2>
                                         <ComparisonView
@@ -185,7 +226,7 @@ function App() {
                                                 disabled={loading}
                                                 className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 inline-flex items-center gap-2 disabled:opacity-50"
                                             >
-                                                <span>Download Image</span>
+                                                <span>Download PNG Image</span>
                                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
                                                     <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
                                                 </svg>
@@ -200,27 +241,86 @@ function App() {
                 {activeTab === 'extract' && (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                         <div className="space-y-6">
+                            {/* T022: Helper text explaining Original vs Suspect */}
                             <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 text-blue-800 text-sm">
-                                <strong>Note:</strong> Use this tab if you have the original image. It provides higher accuracy than Blind Verify.
+                                <strong>⚠️ Important - Upload Order:</strong>
+                                <ul className="mt-2 space-y-1 list-disc list-inside">
+                                    <li><strong>Original Image:</strong> The <u>ORIGINAL unwatermarked</u> image (before embedding)</li>
+                                    <li><strong>Suspect Image:</strong> The <u>WATERMARKED</u> image (after embedding, downloaded from Embed tab)</li>
+                                    <li>We compare both images to extract the hidden watermark</li>
+                                </ul>
+                                <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-yellow-800 text-xs">
+                                    💡 <strong>Tip:</strong> If extraction fails, make sure you didn't swap the images!
+                                </div>
                             </div>
+                            
                             <section className="bg-white p-6 rounded-lg shadow-md">
-                                <h2 className="text-xl font-semibold mb-4">1. Original Image</h2>
+                                <h2 className="text-xl font-semibold mb-4 flex items-center justify-between">
+                                    <span>1. Original Image</span>
+                                    {/* T021: Success checkmark when file uploaded */}
+                                    {extractOriginal && <span className="text-green-600 text-sm">✓ Uploaded</span>}
+                                </h2>
                                 <Dropzone
-                                    onFileSelect={setExtractOriginal}
+                                    onFileSelect={handleExtractOriginalSelect}
                                     label={extractOriginal ? extractOriginal.name : "Upload Original"}
                                 />
+                                {/* T020: Filename display */}
+                                {extractOriginal && (
+                                    <div className="mt-2 text-sm text-gray-600">
+                                        📄 {extractOriginal.name} ({(extractOriginal.size / 1024).toFixed(1)} KB)
+                                    </div>
+                                )}
+                                {/* T018: File preview for extractOriginal */}
+                                {extractOriginalPreview && (
+                                    <div className="mt-4">
+                                        <img 
+                                            src={extractOriginalPreview} 
+                                            alt="Original preview" 
+                                            className="max-h-48 mx-auto rounded border border-gray-200" 
+                                        />
+                                    </div>
+                                )}
                             </section>
+                            
                             <section className="bg-white p-6 rounded-lg shadow-md">
-                                <h2 className="text-xl font-semibold mb-4">2. Suspect Image</h2>
+                                <h2 className="text-xl font-semibold mb-4 flex items-center justify-between">
+                                    <span>2. Suspect Image</span>
+                                    {/* T021: Success checkmark when file uploaded */}
+                                    {extractSuspect && <span className="text-green-600 text-sm">✓ Uploaded</span>}
+                                </h2>
                                 <Dropzone
-                                    onFileSelect={setExtractSuspect}
+                                    onFileSelect={handleExtractSuspectSelect}
                                     label={extractSuspect ? extractSuspect.name : "Upload Suspect"}
                                 />
+                                {/* T020: Filename display */}
+                                {extractSuspect && (
+                                    <div className="mt-2 text-sm text-gray-600">
+                                        📄 {extractSuspect.name} ({(extractSuspect.size / 1024).toFixed(1)} KB)
+                                    </div>
+                                )}
+                                {/* T019: File preview for extractSuspect */}
+                                {extractSuspectPreview && (
+                                    <div className="mt-4">
+                                        <img 
+                                            src={extractSuspectPreview} 
+                                            alt="Suspect preview" 
+                                            className="max-h-48 mx-auto rounded border border-gray-200" 
+                                        />
+                                    </div>
+                                )}
                             </section>
+                            
+                            {/* T023: Disable button when files missing, show validation message */}
+                            {(!extractOriginal || !extractSuspect) && (
+                                <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200 text-yellow-800 text-sm">
+                                    ⚠️ Please upload both images to continue
+                                </div>
+                            )}
+                            
                             <button
                                 onClick={handleExtract}
                                 disabled={loading || !extractOriginal || !extractSuspect}
-                                className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50"
+                                className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {loading ? "Extracting..." : "Extract Watermark"}
                             </button>

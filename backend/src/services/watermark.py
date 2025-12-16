@@ -49,21 +49,34 @@ class WatermarkService:
     async def extract(self, original: np.ndarray, suspect: np.ndarray) -> dict:
         """
         Orchestrate the extraction process with geometric alignment.
+        This function extracts watermark by comparing the original (unwatermarked) 
+        and suspect (watermarked) images.
         """
-        # 1. Align image
+        print(f"[Extract Service] Original shape: {original.shape}, Suspect shape: {suspect.shape}")
+        
+        # 1. Align suspect to match original geometry
         aligned = self.geometry.align_image(original, suspect)
+        print(f"[Extract Service] Alignment result: {aligned is not None}")
         
         if aligned is None:
-            # Fallback: try extracting without alignment
+            # Fallback: try without alignment
             aligned = suspect
             status = "alignment_failed"
         else:
             status = "aligned"
-            
-        # 2. Extract watermark
-        # The alpha/delta value must match the one used during embedding.
-        # The default is 10.0 in both, which is consistent for now.
+        
+        # 2. Extract watermark from the aligned suspect image
+        # For Extract (with original), we extract directly from the watermarked image
+        # The watermarked image should contain the embedded watermark
         text = self.extractor.extract_watermark_dwt_qim(aligned)
+        
+        # 3. If extraction failed, log details for debugging
+        if "failed" in text.lower() or "invalid" in text.lower() or "not enough" in text.lower():
+            # Try DCT fallback method
+            text_dct = self.extractor.extract_watermark_dct(aligned)
+            if not ("failed" in text_dct.lower() or "invalid" in text_dct.lower()):
+                text = text_dct
+                status = f"{status}_dct_fallback"
         
         return {
             "extracted_text": text,

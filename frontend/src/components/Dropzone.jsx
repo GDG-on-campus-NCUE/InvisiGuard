@@ -1,6 +1,9 @@
-import React, { useCallback } from 'react'
+import React, { useCallback, useRef } from 'react'
 
 export default function Dropzone({ onFileSelect, label = "Upload Image" }) {
+  // Use ref instead of fixed ID to support multiple Dropzone instances
+  const fileInputRef = useRef(null)
+  
   const handleDrop = useCallback((e) => {
     e.preventDefault()
     e.stopPropagation()
@@ -15,16 +18,22 @@ export default function Dropzone({ onFileSelect, label = "Upload Image" }) {
     }
   }
 
+  const handleClick = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click()
+    }
+  }
+
   return (
     <div 
       className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-500 transition-colors cursor-pointer"
       onDrop={handleDrop}
       onDragOver={(e) => e.preventDefault()}
-      onClick={() => document.getElementById('fileInput').click()}
+      onClick={handleClick}
     >
       <input 
         type="file" 
-        id="fileInput" 
+        ref={fileInputRef}
         className="hidden" 
         accept="image/*" 
         onChange={handleChange} 

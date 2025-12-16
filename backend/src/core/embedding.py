@@ -4,9 +4,18 @@ import pywt
 from scipy.fftpack import dct, idct
 from .geometry import embed_synch_template, SynchTemplate
 from reedsolo import RSCodec
+from src.utils.logger import get_logger
 
-# Reed-Solomon parameters
-N_ECC_SYMBOLS = 10 # Number of ECC symbols (can correct N_ECC_SYMBOLS / 2 errors)
+# T027: Algorithm parameter constants - MUST MATCH extraction.py
+WAVELET = 'haar'  # Wavelet type for DWT
+LEVEL = 1  # DWT decomposition level
+DELTA = 10.0  # QIM quantization step size - CRITICAL for embed/extract consistency
+
+# Reed-Solomon parameters - Enhanced for crop resistance
+N_ECC_SYMBOLS = 30  # Number of ECC symbols (can correct N_ECC_SYMBOLS / 2 = 15 errors)
+# Trade-off: More ECC = Better error correction, but less message capacity
+
+logger = get_logger(__name__)
 
 
 class WatermarkEmbedder:
@@ -52,6 +61,12 @@ class WatermarkEmbedder:
         # The encode method appends the ECC symbols to the data
         packet = self.rsc.encode(padded_data) # packet is now always 255 bytes
         
+        logger.debug(f"[Embed] Original text: '{text}', length: {length}")
+        logger.debug(f"[Embed] Payload (first 20 bytes): {list(packet[:20])}")
+        logger.debug(f"[Embed] Payload as hex: {packet[:20].hex()}")
+        logger.debug(f"[Embed] ECC symbols (last 10 bytes): {list(packet[-10:])}")
+        logger.debug(f"[Embed] ECC as hex: {packet[-10:].hex()}")
+        
         encoded_bits = []
         for byte in packet:
             binval = bin(byte)[2:].rjust(8, '0')
@@ -60,44 +75,70 @@ class WatermarkEmbedder:
 
     def embed_watermark_dwt_qim(self, image: np.ndarray, text: str, alpha: float = 10.0) -> np.ndarray:
         """Embed watermark using DWT and QIM."""
+        # T030: Log parameters for debugging
+        logger.debug(f"[Embed] Parameters: WAVELET={WAVELET}, LEVEL={LEVEL}, DELTA={DELTA}, alpha={alpha}")
+        
+        # Store original shape for reconstruction
+        original_shape = image.shape
+        
         if len(image.shape) == 3:
             yuv = cv2.cvtColor(image, cv2.COLOR_BGR2YUV)
             y_channel = yuv[:, :, 0].astype(float)
         else:
             y_channel = image.astype(float)
         
+        # Store original Y channel shape
+        original_y_shape = y_channel.shape
+        logger.debug(f"[Embed] Original Y channel shape: {original_y_shape}")
+        
         bits = self.text_to_bits(text)
         
-        # DWT decomposition
-        coeffs = pywt.dwt2(y_channel, 'haar')
+        # DWT decomposition - T027: Use constant WAVELET
+        coeffs = pywt.dwt2(y_channel, WAVELET)
         LL, (LH, HL, HH) = coeffs
+        
+        logger.debug(f"[Embed] LL shape: {LL.shape}, total capacity: {LL.shape[0] * LL.shape[1]} bits")
+        logger.debug(f"[Embed] LL min/max BEFORE QIM: {LL.min():.2f}/{LL.max():.2f}")
+        logger.debug(f"[Embed] Embedding {len(bits)} bits, first 50: {bits[:50]}")
         
         ll_flat = LL.flatten()
         
         if len(bits) > len(ll_flat):
             raise ValueError("Not enough space in the image to embed the watermark.")
-            
-        # QIM embedding
-        delta = 10.0 # Fixed delta for now
         
+        # Sequential embedding (concentrated in upper region for crop resistance)
+        # Trade-off: Watermark in one area, but survives edge cropping + strong ECC
+        logger.debug(f"[Embed] Using sequential embedding (positions 0-{len(bits)-1})")
+            
+        # QIM embedding - T027: Use constant DELTA with sequential positions
         for i in range(len(bits)):
-            c = ll_flat[i]
+            c = ll_flat[i]  # Sequential position
             b = bits[i]
             
-            q = round(c / delta)
+            q = round(c / DELTA)
             
             if b == 0 and q % 2 != 0: # If bit is 0, quantizer must be even
                 q -= 1
             elif b == 1 and q % 2 == 0: # If bit is 1, quantizer must be odd
                 q += 1
             
-            ll_flat[i] = q * delta
+            ll_flat[i] = q * DELTA
             
         LL_w = ll_flat.reshape(LL.shape)
         
-        # Inverse DWT
+        logger.debug(f"[Embed] LL_w min/max AFTER QIM: {LL_w.min():.2f}/{LL_w.max():.2f}")
+        
+        # Inverse DWT - T027: Use constant WAVELET
         coeffs_w = (LL_w, (LH, HL, HH))
-        y_channel_w = pywt.idwt2(coeffs_w, 'haar')
+        y_channel_w = pywt.idwt2(coeffs_w, WAVELET)
+        
+        # CRITICAL FIX: Ensure reconstructed channel matches original size
+        if y_channel_w.shape != original_y_shape:
+            logger.warning(f"[Embed] IDWT size mismatch! Got {y_channel_w.shape}, expected {original_y_shape}")
+            # Crop or pad to match original size
+            y_channel_w = y_channel_w[:original_y_shape[0], :original_y_shape[1]]
+        
+        logger.debug(f"[Embed] After IDWT shape: {y_channel_w.shape}")
         
         # Merge channels back
         processed_y = np.clip(y_channel_w, 0, 255).astype(np.uint8)
@@ -108,9 +149,13 @@ class WatermarkEmbedder:
         else:
             watermarked = processed_y
         
-        # Synchronization template is still important
-        template = SynchTemplate()
-        watermarked = embed_synch_template(watermarked, template)
+        # NOTE: Sync template is disabled because it interferes with DWT coefficients
+        # Current limitation: Verify (blind extraction) won't work with geometric transformations
+        # template = SynchTemplate()
+        # watermarked = embed_synch_template(watermarked, template)
+        logger.debug("[Embed] Sync template disabled - Verify will assume no geometric transformation")
+        
+        logger.info(f"[Embed] Successfully embedded {len(bits)} bits into image")
             
         return watermarked
 

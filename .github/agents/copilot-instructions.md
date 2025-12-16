@@ -31,7 +31,6 @@ cd src; pytest; ruff check .
 ## Recent Changes
 - 003-fix-verify-polish: Added Python 3.11+ (Backend), Node.js/React 18 (Frontend) + FastAPI, OpenCV, NumPy, SciPy (Backend); Vite, Tailwind (Frontend)
 - 002-blind-verification: Added Python 3.10+ (Backend), TypeScript/React (Frontend) + FastAPI, OpenCV (headless), NumPy, SciPy
-- 002-blind-verification: Added Python 3.10+ (Backend), TypeScript/React (Frontend) + FastAPI, OpenCV (headless), NumPy, SciPy
 
 
 <!-- MANUAL ADDITIONS START -->
