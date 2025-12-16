@@ -41,7 +41,7 @@ def generate_signal_heatmap(original: np.ndarray, watermarked: np.ndarray, alpha
     
     # 3. 疊加到原始圖像上
     # 我們將熱圖和原始圖像混合在一起，這樣就可以在原始圖像上看到浮水印的位置。
-    # 這裡，我們讓熱圖佔 30% 的權重，原始圖像佔 70% 的權重。
+    # 讓熱圖佔 30% 的權重，原始圖像佔 70% 的權重。
     overlay = cv2.addWeighted(heatmap, 0.3, original, 0.7, 0)
     
     return overlay

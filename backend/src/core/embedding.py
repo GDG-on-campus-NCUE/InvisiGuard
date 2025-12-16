@@ -46,7 +46,7 @@ class WatermarkEmbedder:
         # --- 1. 構建負載 ---
         # 負載是用戶訊息和一些額外資訊的組合，以確保可以正確提取它。
 
-        # "INV" 是一個 "魔法" 標頭，用於識別我們的浮水印。
+        # "INV" 是一個標頭，用於識別我們的浮水印。
         header = "INV"
         length = len(text)
         
@@ -54,7 +54,7 @@ class WatermarkEmbedder:
         # 一部分塊用於錯誤校正，剩下的是數據。
         max_data_len = 255 - N_ECC_SYMBOLS
         
-        # 我們需要3個字節放標頭("INV")和1個字節放長度。
+        # 3 Byte 放標頭(INV); 1 Byte 放長度。
         max_text_len = max_data_len - 4
         if length > max_text_len:
             raise ValueError(f"文本太長 (當前Reed-Solomon配置最大支持 {max_text_len} 個字符)")
@@ -64,20 +64,20 @@ class WatermarkEmbedder:
         data = bytearray(payload_str, 'utf-8')
         
         # --- 2. 填充和編碼 ---
-        # 用空字節填充數據，使其達到固定大小 (225 字節)。
+        # 用空字節填充數據，使其達到固定大小 (225 bits)。
         # 這確保了即使訊息很短，整個數據塊的大小也是一致的。
         padded_data = data + b'\0' * (max_data_len - len(data))
 
-        # 使用Reed-Solomon對數據進行編碼。
-        # 這會將30個ECC字節附加到數據的末尾，總共產生255字節的數據包。
-        # 這些ECC字節就像一個安全網，可以修復在提取過程中可能發生的錯誤。
+        # 使用 Reed-Solomon 對數據進行編碼。
+        # 這會將 30 個 ECC 字節附加到數據的末尾，總共產生 255 字節的數據包。
+        # 這些 ECC 字節可以修復在提取過程中可能發生的錯誤。
         packet = self.rsc.encode(padded_data)
         
         logger.debug(f"[Embed] 原始文本: '{text}', 長度: {length}")
         logger.debug(f"[Embed] 負載 (前20字節): {list(packet[:20])}")
         
-        # --- 3. 轉換為位元 ---
-        # 將255字節的數據包轉換為位元流 (255 * 8 = 2040 位元)。
+        # --- 轉換為位元 ---
+        # 將 255 bit 的數據包轉換為 Byte (255 * 8 = 2040 位元)。
         # 每個位元都將嵌入到圖像的一個係數中。
         encoded_bits = []
         for byte in packet:
@@ -87,13 +87,12 @@ class WatermarkEmbedder:
 
     def embed_watermark_dwt_qim(self, image: np.ndarray, text: str, alpha: float = 10.0) -> np.ndarray:
         """使用DWT和QIM嵌入浮水印。"""
-        # T030: 記錄參數以供調試
+        
         logger.debug(f"[Embed] 參數: WAVELET={WAVELET}, LEVEL={LEVEL}, DELTA={DELTA}, alpha={alpha}")
         
         # --- 1. 圖像預處理 ---
-        # 如果圖像有顏色，我們將其轉換為YUV色彩空間。
-        # Y通道代表亮度（黑白），U和V代表色度。
-        # 我們只在Y通道中嵌入浮水印，以避免影響顏色。
+        # 如果圖像有顏色，我們將其轉換為 YUV 色彩空間。
+        # Y 通道代表亮度（黑白），U和V代表色度，只在 Y 通道中嵌入浮水印，避免影響顏色。
         if len(image.shape) == 3:
             yuv = cv2.cvtColor(image, cv2.COLOR_BGR2YUV)
             y_channel = yuv[:, :, 0].astype(float)
@@ -102,16 +101,15 @@ class WatermarkEmbedder:
         
         original_y_shape = y_channel.shape
         
-        # --- 2. 準備位元流 ---
-        # 將要嵌入的文本轉換為包含錯誤校正碼的位元流。
+        # 準備位元流，將要嵌入的文本轉換為包含錯誤校正碼的位元流。
         bits = self.text_to_bits(text)
         
-        # --- 3. 離散小波變換 (DWT) ---
-        # DWT將圖像分解為不同的頻率分量。
-        # 我們使用'haar'小波，因為它簡單且高效。
+        # --- 離散小波變換 (DWT) ---
+        # DWT 將圖像分解為不同的頻率分量。
+        # 我們使用 'haar' 小波，因為它簡單且高效。
         # 分解產生四個子帶：
-        # LL: 低頻（圖像的主要結構）
-        # LH, HL, HH: 高頻（邊緣和紋理）
+            # LL: 低頻（圖像的主要結構）
+            # LH, HL, HH: 高頻（邊緣和紋理）
         # 我們將浮水印嵌入到LL子帶中，因為它對圖像質量的影響最小，並且對壓縮等攻擊最不敏感。
         coeffs = pywt.dwt2(y_channel, WAVELET)
         LL, (LH, HL, HH) = coeffs
@@ -125,11 +123,10 @@ class WatermarkEmbedder:
         if len(bits) > len(ll_flat):
             raise ValueError("圖像空間不足以嵌入浮水印。")
         
-        # --- 4. 量化索引調變 (QIM) ---
-        # QIM是一種通過修改係數的量化值來嵌入數據的技術。
-        # 這裡，我們使用係數的奇偶性來代表0或1。
-        # 我們將浮水印順序嵌入到圖像的左上角區域。
-        # 這種策略有助於抵抗從圖像底部或右側的裁切。
+        # --- 量化索引調變 (QIM) ---
+        # QIM 是一種通過修改係數的量化值來嵌入數據的技術。
+        # 使用係數的奇偶性來代表0或1。
+        # 我們將浮水印順序嵌入到圖像的左上角區域，這種策略有助於抵抗從圖像底部或右側的裁切。
         logger.debug(f"[Embed] 使用順序嵌入 (位置 0-{len(bits)-1})")
         for i in range(len(bits)):
             c = ll_flat[i]  # 獲取一個LL係數
@@ -153,22 +150,20 @@ class WatermarkEmbedder:
         
         logger.debug(f"[Embed] QIM後LL_w的最小/最大值: {LL_w.min():.2f}/{LL_w.max():.2f}")
         
-        # --- 5. 重建圖像 ---
-        # 使用修改後的LL子帶和原始的LH, HL, HH子帶進行逆DWT，
-        # 重建帶有浮水印的Y通道。
+        # --- 重建圖像 ---
+        # 使用修改後的LL子帶和原始的LH, HL, HH子帶進行逆 DWT，重建帶有浮水印的Y通道。
         coeffs_w = (LL_w, (LH, HL, HH))
         y_channel_w = pywt.idwt2(coeffs_w, WAVELET)
         
-        # 有時IDWT後的尺寸會因舍入而有1個像素的差異。
-        # 我們需要確保其尺寸與原始Y通道完全相同。
+        # 有時 IDWT 後的尺寸會因舍入而有1個像素的差異 -> 需要確保其尺寸與原始 Y 通道完全相同。
         if y_channel_w.shape != original_y_shape:
             logger.warning(f"[Embed] IDWT尺寸不匹配！得到 {y_channel_w.shape}, 期望 {original_y_shape}")
             y_channel_w = y_channel_w[:original_y_shape[0], :original_y_shape[1]]
         
-        # 將Y通道的值裁剪到0-255範圍並轉換為8位無符號整數。
+        # 將 Y 通道的值裁剪到 0-255 範圍並轉換為 8 位無符號整數。
         processed_y = np.clip(y_channel_w, 0, 255).astype(np.uint8)
         
-        # 如果原始圖像是彩色的，將修改後的Y通道與原始U, V通道合併。
+        # 如果原始圖像是彩色的，將修改後的 Y 通道與原始 U, V 通道合併。
         if len(image.shape) == 3:
             yuv[:, :, 0] = processed_y
             watermarked = cv2.cvtColor(yuv, cv2.COLOR_YUV2BGR)

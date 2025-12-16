@@ -57,7 +57,7 @@ class WatermarkExtractor:
                 logger.warning("[Parse] 空訊息 (長度=0)")
                 return ""
             
-            # --- 3. 提取並解碼訊息 ---
+            # --- 提取並解碼訊息 ---
             end_index = 4 + length_val
             if end_index > len(payload):
                 logger.error(f"[Parse] 長度 {length_val} 超出負載大小 {len(payload)}")
@@ -89,7 +89,7 @@ class WatermarkExtractor:
             logger.error(f"[RS] 位元不足: {len(bits)} (需要 {RS_BLOCK_SIZE * 8})")
             return f"沒有足夠的數據提取浮水印 (找到 {len(bits)} 位元, 需要 {RS_BLOCK_SIZE * 8})"
 
-        # --- 1. 將位元轉換為字節 ---
+        # --- 將位元轉換為字節 ---
         packet = bytearray()
         num_bytes = RS_BLOCK_SIZE
         bits_to_decode = bits[:num_bytes*8]
@@ -99,9 +99,8 @@ class WatermarkExtractor:
         
         logger.debug(f"[RS] 輸入數據包 (前20字節): {list(packet[:20])}")
         
-        # --- 2. Reed-Solomon 解碼 ---
-        # 這是魔法發生的地方。解碼器會嘗試修復數據包中的任何錯誤。
-        # 由於我們使用了30個ECC符號，它最多可以修復15個字節的錯誤。
+        # --- Reed-Solomon 解碼 ---
+        # 解碼器會嘗試修復數據包中的錯誤，由於我們使用了 30 個 ECC 符號，最多可以修復 15 個字節的錯誤。
         try:
             decoded_data, _, errata = self.rsc.decode(packet)
             logger.info(f"[RS] 解碼成功, 校正了 {len(errata)} 個錯誤")
@@ -117,19 +116,19 @@ class WatermarkExtractor:
             return f"Reed-Solomon解碼錯誤: {type(e).__name__} - {str(e)}"
 
     def extract_watermark_dwt_qim(self, image: np.ndarray, alpha: float = 10.0) -> str:
-        """使用DWT和QIM提取浮水印。"""
-        # T031: 記錄參數以供調試
+        """使用 DWT 和 QIM 提取浮水印。"""
+        
         logger.debug(f"[Extract] 參數: WAVELET={WAVELET}, LEVEL={LEVEL}, DELTA={DELTA}")
         
-        # --- 1. 圖像預處理 ---
-        # 與嵌入過程相同，我們只處理Y通道。
+        # --- 圖像預處理 ---
+        # 與嵌入過程相同，只處理Y通道。
         if len(image.shape) == 3:
             yuv = cv2.cvtColor(image, cv2.COLOR_BGR2YUV)
             y_channel = yuv[:, :, 0].astype(float)
         else:
             y_channel = image.astype(float)
         
-        # --- 2. 離散小波變換 (DWT) ---
+        # --- 離散小波變換 (DWT) ---
         # 應用與嵌入時相同的DWT分解。
         coeffs = pywt.dwt2(y_channel, WAVELET)
         LL, _ = coeffs
@@ -142,8 +141,8 @@ class WatermarkExtractor:
         if num_bits_to_extract > len(ll_flat):
             return "圖像中的數據不足以提取浮水印。"
         
-        # --- 3. 量化索引調變 (QIM) 提取 ---
-        # 這是嵌入過程的逆過程。
+        # --- 量化索引調變 (QIM) 提取 ---
+        # 嵌入過程的逆運算。
         logger.debug(f"[Extract] 使用順序提取 (位置 0-{num_bits_to_extract-1})")
         extracted_bits = []
         
@@ -151,7 +150,7 @@ class WatermarkExtractor:
             c = ll_flat[i]  # 獲取LL係數
             q = round(c / DELTA)  # 計算量化索引
             
-            # 檢查q的奇偶性來確定嵌入的位元是0還是1。
+            # 檢查 q 的奇偶性來確定嵌入的位元是0還是1。
             if q % 2 == 0:
                 extracted_bits.append(0)
             else:
@@ -159,8 +158,8 @@ class WatermarkExtractor:
         
         logger.debug(f"[Extract] 提取到位元數: {len(extracted_bits)}, 前50位: {extracted_bits[:50]}")
                 
-        # --- 4. 解碼位元流 ---
-        # 使用Reed-Solomon解碼器處理提取出的位元流，修復錯誤並獲取原始訊息。
+        # --- 解碼位元流 ---
+        # 使用 Reed-Solomon 解碼器處理提取出的位元流，修復錯誤並獲取原始訊息。
         return self._decode_rs_stream(extracted_bits)
 
     def extract_watermark_dct(self, image: np.ndarray) -> str:
